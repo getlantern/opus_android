@@ -14,13 +14,21 @@ import java.util.TimerTask;
  * Created by young on 2015/7/2.
  */
 public class OpusRecorder {
-    private OpusRecorder(){}
+    private static int RECORDER_SAMPLERATE = 16000;
+    private static int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
+    private static int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+    
+    private OpusRecorder(int sampleRate, int channels, int encoding){
+            RECORDER_SAMPLERATE = sampleRate;
+            RECORDER_CHANNELS = channels;
+            RECORDER_AUDIO_ENCODING = encoding;
+    }
     private static volatile OpusRecorder oRecorder ;
-    public static OpusRecorder getInstance(){
+    public static OpusRecorder getInstance(int sampleRate, int channels, int encoding){
         if(oRecorder == null)
             synchronized(OpusRecorder.class){
                 if(oRecorder == null)
-                    oRecorder = new OpusRecorder();
+                    oRecorder = new OpusRecorder(sampleRate, channels, encoding);
             }
         return oRecorder;
     }
@@ -29,9 +37,6 @@ public class OpusRecorder {
     private static final int STATE_STARTED = 1;
 
     private static final String TAG = OpusRecorder.class.getName();
-    private static final int RECORDER_SAMPLERATE = 16000;
-    private static final int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static final int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
     private volatile int state = STATE_NONE;
 
     private AudioRecord recorder = null;
