@@ -32,6 +32,15 @@ public class OpusRecorder {
             }
         return oRecorder;
     }
+    
+     public static OpusRecorder getInstance(){
+        if(oRecorder == null)
+            synchronized(OpusRecorder.class){
+                if(oRecorder == null)
+                    oRecorder = new OpusRecorder(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            }
+        return oRecorder;
+    }
 
     private static final int STATE_NONE = 0;
     private static final int STATE_STARTED = 1;
