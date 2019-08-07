@@ -290,7 +290,6 @@ int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, 
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
-    channels = channelsP;
     LOGD("in Recorder, path: %s", path);
     if (!path) {
         return 0;
