@@ -286,7 +286,7 @@ void cleanupRecorder() {
     LOGD("Recording ends!!!");
 }
 
-int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, const int channelsP) {
+int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
