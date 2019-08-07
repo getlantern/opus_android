@@ -224,8 +224,8 @@ static int writeOggPage(ogg_page *page, FILE *os) {
     return written;
 }
 
-const opus_int32 bitrate = 16000;
-const opus_int32 rate = 16000;
+opus_int32 bitrate = 16000;
+opus_int32 rate = 16000;
 const opus_int32 frame_size = 960;
 const int with_cvbr = 1;
 const int max_ogg_delay = 0;
@@ -286,9 +286,11 @@ void cleanupRecorder() {
     LOGD("Recording ends!!!");
 }
 
-int initRecorder(const char *path) {
+int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, const int channelsP) {
     cleanupRecorder();
-
+    bitrate = bitrateP;
+    rate = rateP;
+    channels = channelsP;
     LOGD("in Recorder, path: %s", path);
     if (!path) {
         return 0;
@@ -305,8 +307,8 @@ int initRecorder(const char *path) {
     inopt.copy_comments = 0;
     inopt.rawmode = 1;
     inopt.ignorelength = 1;
-    inopt.samplesize = 16;
-    inopt.channels = 1;
+    inopt.samplesize = rate/1000;
+    inopt.channels = channels;
     inopt.skip = 0;
 
     comment_init(&inopt.comments, &inopt.comments_length, opus_get_version_string());
@@ -329,7 +331,7 @@ int initRecorder(const char *path) {
         return 0;
     }
 
-    header.channels = 1;
+    header.channels = channels;
     header.channel_mapping = 0;
     header.input_sample_rate = rate;
     header.gain = inopt.gain;
@@ -645,9 +647,9 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr) {
+int startRecording(const char *pathStr, const opus_int32 rateP, opus_int32 bitrateP, const int channelsP) {
 
-    int result = initRecorder(pathStr);
+    int result = initRecorder(pathStr, rateP, bitrateP, channelsP);
     return result;
 }
 
