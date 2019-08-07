@@ -647,7 +647,7 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr, const opus_int32 rateP, opus_int32 bitrateP, const int channelsP) {
+int startRecording(const char *pathStr, const int rateP, int bitrateP, const int channelsP) {
 
     int result = initRecorder(pathStr, rateP, bitrateP, channelsP);
     return result;
