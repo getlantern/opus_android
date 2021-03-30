@@ -23,7 +23,7 @@ import top.oply.opuslib.OpusTool;
 
 public class oplayer extends Activity {
 
-    private OpusRecorder opusRecorder = null;
+    private Runnable stopRecording = null;
     private OpusTool oTool = new OpusTool();
 
     private ListView lvFiles;
@@ -126,10 +126,10 @@ public class oplayer extends Activity {
     }
 
     public void btnStopRClick(View v) {
-        if (opusRecorder == null)
-            return;
-        opusRecorder.stopRecording();
-        print("Stop Recording");
+        if (stopRecording == null) return;
+        stopRecording.run();
+        stopRecording = null;
+        print("Stopped Recording");
     }
 
     public void btnRecordClick(View v) {
@@ -157,8 +157,10 @@ public class oplayer extends Activity {
     }
 
     private void startRecording() {
-        if (opusRecorder == null)
-            opusRecorder = OpusRecorder.getInstance();
+        if (stopRecording != null) {
+            print("already recording");
+            return;
+        }
 
         String base = "record";
         String name = "record";
@@ -169,7 +171,11 @@ public class oplayer extends Activity {
                 break;
         }
         String fileName = path + name;
-        opusRecorder.startRecording(fileName);
+        OpusRecorder.OpusApplication application = OpusRecorder.OpusApplication.VOIP; // set this to AUDIO for something more optimized for music
+        int sampleRate = 16000; // record audio at 16Khz sample rate
+        int bitRate = 16000; // encode into Opus at approximately 16 Kbps
+        boolean stereo = false; // record mono
+        stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo);
         print("Start Recording.. Save file to: " + fileName);
 
         updateList(name);

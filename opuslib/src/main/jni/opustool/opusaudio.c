@@ -286,7 +286,7 @@ void cleanupRecorder() {
     LOGD("Recording ends!!!");
 }
 
-int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
+int initRecorder(const char *path, const opus_int32 applicationP, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
@@ -337,7 +337,7 @@ int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, 
     header.nb_streams = 1;
 
     int result = OPUS_OK;
-    _encoder = opus_encoder_create(coding_rate, 1, OPUS_APPLICATION_VOIP, &result);
+    _encoder = opus_encoder_create(coding_rate, 1, applicationP, &result);
     if (result != OPUS_OK) {
         LOGE("Error cannot create encoder: %s", opus_strerror(result));
         return 0;
@@ -646,9 +646,9 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr, const int rateP, int bitrateP, const int channelsP) {
+int startRecording(const char *pathStr, const int applicationP, const int rateP, int bitrateP, const int channelsP) {
 
-    int result = initRecorder(pathStr, rateP, bitrateP, channelsP);
+    int result = initRecorder(pathStr, applicationP, rateP, bitrateP, channelsP);
     return result;
 }
 

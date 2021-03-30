@@ -2,18 +2,53 @@
 This fork removes a lot of functionality and keeps only the OpusRecorder functionality for recording
 opus files. Since Android 5, Android natively supports playback of Opus anyway.
 
-### How to use the OpusLib codes (Method 2)
-- Encode and Decode
+### Set Up Permissions
+You'll need the android.Manifest.permission.RECORD_AUDIO permission. First, include it in your AndroidManifest.xml.
+
 ```
-OpusTool oTool = new OpusTool();
-oTool.decode(fileName,fileNameOut, null);
-oTool.encode(fileName, fileNameOut, null);
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
 ```
-- Record
+
+Also, you'll need to check for the permission at runtime, as newer Android versions require the user
+to confirm this permission. For example:
+
 ```
-OpusRecorder opusRecorder = OpusRecorder.getInstance();
-opusRecorder.startRecording(fileName);
-opusRecorder.stopRecording();
+public void onUiAction(View v) {
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+        startRecording();
+    } else if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 123);
+    } else {
+        startRecording();
+    }
+}
+
+@Override
+public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+        Toast.makeText(this, "Don't have enough permissions", Toast.LENGTH_LONG).show();
+    } else {
+        startRecording();
+    }
+}
+```
+
+### How to record audio
+
+To start:
+
+```
+OpusRecorder.OpusApplication application = OpusRecorder.OpusApplication.VOIP; // set this to AUDIO for something more optimized for music
+int sampleRate = 16000; // record audio at 16Khz sample rate
+int bitRate = 16000; // encode into Opus at approximately 16 Kbps
+boolean stereo = false; // record mono
+Runnable stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo);
+...
+
+To stop:
+
+```
+stopRecording.run()
 ```
 
 **Well, you can stop reading if you don't need to modify the library code.** Your project should be working if you follow the steps above.
