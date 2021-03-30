@@ -41,18 +41,16 @@ public class OpusRecorder {
      */
     public static int OPUS_APPLICATION_AUDIO = 2049;
 
-    private AtomicBoolean recording = new AtomicBoolean(true);
+    private final AtomicBoolean recording = new AtomicBoolean(true);
     private AudioRecord audioRecord;
     private Thread recordingThread = new Thread();
-    private OpusTool opusTool = new OpusTool();
+    private final OpusTool opusTool = new OpusTool();
     private int bufferSize = 0;
     private String filePath = null;
-    private ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
-    private Utils.AudioTime mRecordTime = new Utils.AudioTime();
+    private final ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
 
     class RecordThread implements Runnable {
         public void run() {
-            mRecordTime.setTimeInSecond(0);
             writeAudioDataToFile();
         }
     }
@@ -108,13 +106,7 @@ public class OpusRecorder {
         }
 
         audioRecord.startRecording();
-
-        if (file.isEmpty()) {
-            filePath = OpusTrackInfo.getInstance().getAValidFileName("OpusRecord");
-        } else {
-            filePath = file;
-        }
-
+        filePath = file;
         int rst = opusTool.startRecording(filePath, application, sampleRate, bitRate, stereo ? 2 : 1);
         if (rst != 1) {
             Log.e(TAG, "error initializing opus recorder");
@@ -171,11 +163,6 @@ public class OpusRecorder {
         }
     }
 
-    private void updateTrackInfo() {
-        OpusTrackInfo info = OpusTrackInfo.getInstance();
-        info.addOpusFile(filePath);
-    }
-
     synchronized private void stopRecording() {
         if (!recording.compareAndSet(true, false)) return;
 
@@ -192,7 +179,5 @@ public class OpusRecorder {
             audioRecord.release();
             audioRecord = null;
         }
-
-        updateTrackInfo();
     }
 }
