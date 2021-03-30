@@ -337,7 +337,7 @@ int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, 
     header.nb_streams = 1;
 
     int result = OPUS_OK;
-    _encoder = opus_encoder_create(coding_rate, 1, OPUS_APPLICATION_AUDIO, &result);
+    _encoder = opus_encoder_create(coding_rate, 1, OPUS_APPLICATION_VOIP, &result);
     if (result != OPUS_OK) {
         LOGE("Error cannot create encoder: %s", opus_strerror(result));
         return 0;

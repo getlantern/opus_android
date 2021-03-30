@@ -1,14 +1,17 @@
 package top.oply.opusplayer;
 
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -37,52 +40,55 @@ public class oplayer extends Activity {
         setContentView(R.layout.activity_oplayer);
 
         //initial listView
-        lvFiles = (ListView)findViewById(R.id.lvFile);
+        lvFiles = (ListView) findViewById(R.id.lvFile);
         lvFiles.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         initData();
-        adapter = new ArrayAdapter<String>( this , android.R.layout.simple_list_item_single_choice,lstFiles);
+        adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_single_choice, lstFiles);
         lvFiles.setAdapter(adapter);
-        lvFiles.setItemChecked(lstFiles.size()-1, true);
-     }
-    private List<String> initData(){
+        lvFiles.setItemChecked(lstFiles.size() - 1, true);
+    }
+
+    private List<String> initData() {
         lstFiles = new ArrayList<String>();
         String SDPATH = Environment.getExternalStorageDirectory().getPath();
         path = SDPATH + "/OpusPlayer/";
         File fp = new File(path);
-        if(!fp.exists())
+        if (!fp.exists())
             fp.mkdir();
 
         File[] files = fp.listFiles();
-        for (File f : files) {
-            lstFiles.add(f.getName());
+        if (files != null) {
+            for (File f : files) {
+                lstFiles.add(f.getName());
+            }
         }
         return lstFiles;
     }
 
-    private void updateList(String str){
+    private void updateList(String str) {
         if (lstFiles.contains(str))
             return;
         else {
             lstFiles.add(str);
             adapter.notifyDataSetChanged();
-            lvFiles.setItemChecked(lstFiles.size()-1, true);
+            lvFiles.setItemChecked(lstFiles.size() - 1, true);
         }
 
     }
 
     private void print(String str) {
         TextView tv;
-        tv = (TextView)findViewById(R.id.mainLog);
-        tv.setText( Utils.CurTime() + ": " + str + "\n" + tv.getText());
+        tv = (TextView) findViewById(R.id.mainLog);
+        tv.setText(Utils.CurTime() + ": " + str + "\n" + tv.getText());
     }
 
-    public void btnDecClick(View view){
+    public void btnDecClick(View view) {
 
-        String selectName =      adapter.getItem(lvFiles.getCheckedItemPosition());
+        String selectName = adapter.getItem(lvFiles.getCheckedItemPosition());
         String fileName = path + selectName;
 
         File f = new File(fileName);
-        if (!f.exists()){
+        if (!f.exists()) {
 
             print(fileName + " is not exist, please put it there");
         }
@@ -90,21 +96,21 @@ public class oplayer extends Activity {
         print("Start decoding...");
         Log.d("encode:", oTool.nativeGetString());
         int result = oTool.decode(fileName, fileNameOut, null);
-        if (result == 0){
+        if (result == 0) {
             String str = "Decode is complete. Output file is: " + fileNameOut;
             updateList(selectName + ".wav");
             print(str);
-        } else{
+        } else {
             String str = "Decode failed.";
             print(str);
         }
     }
 
-    public void btnEncClick(View view){
+    public void btnEncClick(View view) {
         String selectName = adapter.getItem(lvFiles.getCheckedItemPosition());
         String fileName = path + selectName;
         File f = new File(fileName);
-        if (!f.exists()){
+        if (!f.exists()) {
             String str = fileName + " is not exist, please put it there.";
             print(str);
         }
@@ -112,61 +118,85 @@ public class oplayer extends Activity {
         print("Start encoding...");
         Log.d("encode:", oTool.nativeGetString());
         int result = oTool.encode(fileName, fileNameOut, null);
-        if (result == 0){
+        if (result == 0) {
             print("Encode is complete. Output file is: " + fileNameOut);
             updateList(selectName + ".opus");
-        } else{
+        } else {
             print("Encode failed");
         }
 
     }
 
     public void btnPlayClick(View v) {
-        if(opusPlayer == null)
+        if (opusPlayer == null)
             opusPlayer = OpusPlayer.getInstance();
 
         String fileName = path + adapter.getItem(lvFiles.getCheckedItemPosition());
-        if(Utils.getExtention(fileName).equals("opus")) {
+        if (Utils.getExtention(fileName).equals("opus")) {
             opusPlayer.play(fileName);
             print("start palying..." + fileName);
-        }
-        else {
+        } else {
             print("This demo only support opus file's playback.");
         }
 
     }
 
     public void btnPausePClick(View v) {
-        if(opusPlayer == null)
+        if (opusPlayer == null)
             return;
         String fileName = path + adapter.getItem(lvFiles.getCheckedItemPosition());
 
         String str = opusPlayer.toggle(fileName);
-        ((Button)v).setText(str);
+        ((Button) v).setText(str);
         print("You might want to" + str);
     }
+
     public void btnStopPClick(View v) {
-        if(opusPlayer == null)
+        if (opusPlayer == null)
             return;
         opusPlayer.stop();
         print("Stop Playing");
     }
+
     public void btnStopRClick(View v) {
-        if(opusRecorder == null)
+        if (opusRecorder == null)
             return;
         opusRecorder.stopRecording();
         print("Stop Recording");
     }
+
     public void btnRecordClick(View v) {
-        if(opusRecorder == null)
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{
+                    android.Manifest.permission.RECORD_AUDIO,
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }, 123);
+        } else {
+            startRecording();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (grantResults[0] != PackageManager.PERMISSION_GRANTED || grantResults[0] != PackageManager.PERMISSION_GRANTED || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Don't have enough permissions", Toast.LENGTH_LONG).show();
+        } else {
+            startRecording();
+        }
+    }
+
+    private void startRecording() {
+        if (opusRecorder == null)
             opusRecorder = OpusRecorder.getInstance();
 
         String base = "record";
         String name = "record";
         int i = 0;
-        for(i = 1; i < 100; i++){
+        for (i = 1; i < 100; i++) {
             name = base + i + ".opus";
-            if(!lstFiles.contains(name))
+            if (!lstFiles.contains(name))
                 break;
         }
         String fileName = path + name;
