@@ -282,15 +282,12 @@ void cleanupRecorder() {
     memset(&header, 0, sizeof(OpusHeader));
     memset(&op, 0, sizeof(ogg_packet));
     memset(&og, 0, sizeof(ogg_page));
-
-    LOGD("Recording ends!!!");
 }
 
 int initRecorder(const char *path, const opus_int32 applicationP, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
-    LOGD("in Recorder, path: %s", path);
     if (!path) {
         return 0;
     }
@@ -510,7 +507,6 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
         pages_out++;
     }
 
-    LOGD("last byte_written is %lld", bytes_written);
     return 1;
 }
 //

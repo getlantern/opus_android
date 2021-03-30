@@ -78,8 +78,7 @@ public class OpusRecorder {
 
     private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo) throws IllegalArgumentException {
         final int channels = stereo ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
-        int minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channels, AUDIO_FORMAT);
-        bufferSize = (minBufferSize / 1920 + 1) * 1920;
+        bufferSize = AudioRecord.getMinBufferSize(sampleRate, channels, AUDIO_FORMAT);
         audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channels, AUDIO_FORMAT, bufferSize);
         if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
             throw new IllegalArgumentException("AudioRecord failed to initialize. Usually this means that one of the configuration arguments was incorrect.");
@@ -91,7 +90,7 @@ public class OpusRecorder {
                 noiseSuppressor = NoiseSuppressor.create(audioRecord.getAudioSessionId());
                 if (noiseSuppressor != null) noiseSuppressor.setEnabled(true);
             } catch (Exception e) {
-                Log.e(TAG, "[initRecorder] unable to init noise suppressor: " + e);
+                Log.e(TAG, "unable to init noise suppressor: " + e);
             }
         }
 
@@ -101,7 +100,7 @@ public class OpusRecorder {
                 automaticGainControl = AutomaticGainControl.create(audioRecord.getAudioSessionId());
                 if (automaticGainControl != null) automaticGainControl.setEnabled(true);
             } catch (Exception e) {
-                Log.e(TAG, "[initRecorder] unable to init automatic gain control: " + e);
+                Log.e(TAG, "unable to init automatic gain control: " + e);
             }
         }
 
@@ -151,12 +150,12 @@ public class OpusRecorder {
         while (recording.get()) {
             buffer.rewind();
             int len = audioRecord.read(buffer, bufferSize);
-            Log.d(TAG, "\n lengh of buffersize is " + len);
             if (len != AudioRecord.ERROR_INVALID_OPERATION) {
                 try {
                     writeAudioDataToOpus(buffer, len);
                 } catch (Exception e) {
-                    Utils.printE(TAG, e);
+                    e.printStackTrace();
+                    stopRecording();
                 }
             }
 
@@ -168,8 +167,8 @@ public class OpusRecorder {
 
         try {
             Thread.sleep(200);
-        } catch (Exception e) {
-            Utils.printE(TAG, e);
+        } catch (InterruptedException ie) {
+            Log.d(TAG, "Interrupted during final sleep, ignoring");
         }
 
         if (null != audioRecord) {
