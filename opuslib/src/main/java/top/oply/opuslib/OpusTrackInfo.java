@@ -17,18 +17,18 @@ import java.util.Map;
  */
 public class OpusTrackInfo {
 
-    private static volatile OpusTrackInfo oTrackInfo ;
-    public static OpusTrackInfo getInstance(){
-        if(oTrackInfo == null)
-            synchronized(OpusTrackInfo.class){
-                if(oTrackInfo == null)
+    private static volatile OpusTrackInfo oTrackInfo;
+
+    public static OpusTrackInfo getInstance() {
+        if (oTrackInfo == null)
+            synchronized (OpusTrackInfo.class) {
+                if (oTrackInfo == null)
                     oTrackInfo = new OpusTrackInfo();
             }
         return oTrackInfo;
     }
 
     private String TAG = OpusTrackInfo.class.getName();
-    private OpusEvent mEventSender;
     private OpusTool mTool = new OpusTool();
     private String appExtDir;
     private File requestDirFile;
@@ -42,18 +42,15 @@ public class OpusTrackInfo {
     public static final String TITLE_IMG = "TITLE_IMG";
     public static final String TITLE_IS_CHECKED = "TITLE_IS_CHECKED";
 
-    public void setEvenSender(OpusEvent opusEven) {
-        mEventSender = opusEven;
-    }
     private OpusTrackInfo() {
 
         //create OPlayer directory if it does not exist.
-        if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
+        if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
             return;
         String sdcardPath = Environment.getExternalStorageDirectory().getAbsolutePath();
         appExtDir = sdcardPath + "/OPlayer/";
         File fp = new File(appExtDir);
-        if(!fp.exists())
+        if (!fp.exists())
             fp.mkdir();
 
         getTrackInfor(appExtDir);
@@ -67,38 +64,27 @@ public class OpusTrackInfo {
         }
 
         File f = new File(file);
-        if(f.exists() && "opus".equalsIgnoreCase(Utils.getExtention(file))
+        if (f.exists() && "opus".equalsIgnoreCase(Utils.getExtension(file))
                 && mTool.openOpusFile(file) != 0) {
             Map<String, Object> map = new HashMap<String, Object>();
             map.put(TITLE_TITLE, f.getName());
             map.put(TITLE_ABS_PATH, file);
             mAudioTime.setTimeInSecond(mTool.getTotalDuration());
             map.put(TITLE_DURATION, mAudioTime.getTime());
-            map.put(TITLE_IS_CHECKED,false);
+            map.put(TITLE_IS_CHECKED, false);
             //TODO: get imagin from opus files
             map.put(TITLE_IMG, 0);
             mTrackInforList.add(map);
             mTool.closeOpusFile();
-
-            if(mEventSender != null)
-                mEventSender.sendTrackinforEvent(mTrackInforList);
         }
     }
 
-    public String getAppExtDir() {
-        return  appExtDir;
-    }
-
-    public void sendTrackInforToUi() {
-        if(mEventSender != null)
-            mEventSender.sendTrackinforEvent(mTrackInforList);
-    }
     public AudioPlayList getTrackInfor() {
         return mTrackInforList;
     }
 
     private void getTrackInfor(String Dir) {
-        if(Dir.length() == 0)
+        if (Dir.length() == 0)
             Dir = appExtDir;
         File file = new File(Dir);
         if (file.exists() && file.isDirectory())
@@ -112,14 +98,14 @@ public class OpusTrackInfo {
         String name = prefix;
         String extention = ".opus";
         HashSet<String> set = new HashSet<String>(100);
-        List<Map<String, Object>> lst =  getTrackInfor().getList();
-        for (Map<String, Object>map : lst) {
+        List<Map<String, Object>> lst = getTrackInfor().getList();
+        for (Map<String, Object> map : lst) {
             set.add(map.get(OpusTrackInfo.TITLE_TITLE).toString());
         }
         int i = 0;
         while (true) {
             i++;
-            if(!set.contains(name + i + extention))
+            if (!set.contains(name + i + extention))
                 break;
         }
 
@@ -129,25 +115,25 @@ public class OpusTrackInfo {
     private void prepareTrackInfor(File file) {
         try {
             File[] files = file.listFiles();
-            for(File f : files) {
+            for (File f : files) {
                 if (f.isFile()) {
                     String name = f.getName();
                     String absPath = f.getAbsolutePath();
-                    if ("opus".equalsIgnoreCase(Utils.getExtention(name))
+                    if ("opus".equalsIgnoreCase(Utils.getExtension(name))
                             && mTool.openOpusFile(absPath) != 0) {
                         Map<String, Object> map = new HashMap<String, Object>();
                         map.put(TITLE_TITLE, f.getName());
-                        map.put(TITLE_ABS_PATH,absPath);
+                        map.put(TITLE_ABS_PATH, absPath);
                         mAudioTime.setTimeInSecond(mTool.getTotalDuration());
                         map.put(TITLE_DURATION, mAudioTime.getTime());
                         //TODO: get imagin from opus files
-                        map.put(TITLE_IS_CHECKED,false);
+                        map.put(TITLE_IS_CHECKED, false);
                         map.put(TITLE_IMG, 0);
                         mTrackInforList.add(map);
                         mTool.closeOpusFile();
                     }
 
-                } else if (f.isDirectory()){
+                } else if (f.isDirectory()) {
                     prepareTrackInfor(f);
                 }
             }
@@ -160,21 +146,26 @@ public class OpusTrackInfo {
         public AudioPlayList() {
 
         }
-        public static final long serialVersionUID=1234567890987654321L;
+
+        public static final long serialVersionUID = 1234567890987654321L;
         private List<Map<String, Object>> mAudioInforList = new ArrayList<Map<String, Object>>(32);
 
         public void add(Map<String, Object> map) {
             mAudioInforList.add(map);
         }
+
         public List<Map<String, Object>> getList() {
             return mAudioInforList;
         }
+
         public boolean isEmpty() {
             return mAudioInforList.isEmpty();
         }
+
         public int size() {
             return mAudioInforList.size();
         }
+
         public void clear() {
             mAudioInforList.clear();
         }
@@ -183,15 +174,14 @@ public class OpusTrackInfo {
     class MyThread implements Runnable {
         public void run() {
             prepareTrackInfor(requestDirFile);
-            sendTrackInforToUi();
         }
     }
 
     public void release() {
-        try{
-            if(mThread.isAlive())
+        try {
+            if (mThread.isAlive())
                 mThread.interrupt();
-        }catch (Exception e) {
+        } catch (Exception e) {
             Utils.printE(TAG, e);
         }
     }

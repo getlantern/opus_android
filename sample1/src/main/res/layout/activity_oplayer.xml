@@ -78,36 +78,6 @@
             android:minWidth="120dp"
             android:onClick="btnStopRClick" />
 
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Play"
-            android:id="@+id/btnPlay"
-            android:layout_gravity="left|top"
-            android:layout_marginTop="60dp"
-            android:minWidth="120dp"
-            android:onClick="btnPlayClick" />
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PausePlaying"
-            android:id="@+id/btnPausePlay"
-            android:layout_gravity="center_horizontal|top"
-            android:layout_marginTop="60dp"
-            android:minWidth="120dp"
-            android:onClick="btnPausePClick" />
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="StopPlaying"
-            android:id="@+id/btnStopPlay"
-            android:layout_gravity="right|top"
-            android:layout_marginTop="60dp"
-            android:minWidth="120dp"
-            android:onClick="btnStopPClick" />
-
         <ListView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

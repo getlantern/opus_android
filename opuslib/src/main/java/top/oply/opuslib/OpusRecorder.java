@@ -7,10 +7,7 @@ import android.media.audiofx.AutomaticGainControl;
 import android.media.audiofx.NoiseSuppressor;
 import android.util.Log;
 
-import java.io.File;
 import java.nio.ByteBuffer;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * Created by young on 2015/7/2.
@@ -59,19 +56,11 @@ public class OpusRecorder {
     private int bufferSize = 0;
     private String filePath = null;
     private ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
-    private OpusEvent mEventSender = null;
-    private Timer mProgressTimer = null;
     private Utils.AudioTime mRecordTime = new Utils.AudioTime();
-
-    public void setEventSender(OpusEvent es) {
-        mEventSender = es;
-    }
 
     class RecordThread implements Runnable {
         public void run() {
-            mProgressTimer = new Timer();
             mRecordTime.setTimeInSecond(0);
-            mProgressTimer.schedule(new MyTimerTask(), 1000, 1000);
 
             writeAudioDataToFile();
         }
@@ -120,14 +109,9 @@ public class OpusRecorder {
 //        filePath = file.isEmpty() ? initRecordFileName() : file;
         int rst = opusTool.startRecording(filePath, RECORDER_SAMPLERATE, RECORDER_BITRATE, 1);
         if (rst != 1) {
-            if (mEventSender != null)
-                mEventSender.sendEvent(OpusEvent.RECORD_FAILED);
             Log.e(TAG, "recorder initially error");
             return;
         }
-
-        if (mEventSender != null)
-            mEventSender.sendEvent(OpusEvent.RECORD_STARTED);
 
         recordingThread = new Thread(new RecordThread(), "OpusRecord Thrd");
         recordingThread.start();
@@ -176,8 +160,6 @@ public class OpusRecorder {
                 try {
                     writeAudioDataToOpus(buffer, len);
                 } catch (Exception e) {
-                    if (mEventSender != null)
-                        mEventSender.sendEvent(OpusEvent.RECORD_FAILED);
                     Utils.printE(TAG, e);
                 }
             }
@@ -188,10 +170,6 @@ public class OpusRecorder {
     private void updateTrackInfo() {
         OpusTrackInfo info = OpusTrackInfo.getInstance();
         info.addOpusFile(filePath);
-        if (mEventSender != null) {
-            File f = new File(filePath);
-            mEventSender.sendEvent(OpusEvent.RECORD_FINISHED, f.getName());
-        }
     }
 
     public void stopRecording() {
@@ -199,7 +177,6 @@ public class OpusRecorder {
             return;
 
         state = STATE_NONE;
-//        mProgressTimer.cancel();
         try {
             Thread.sleep(200);
         } catch (Exception e) {
@@ -226,18 +203,4 @@ public class OpusRecorder {
             stopRecording();
         }
     }
-
-    private class MyTimerTask extends TimerTask {
-        public void run() {
-            if (state != STATE_STARTED) {
-                mProgressTimer.cancel();
-            } else {
-                mRecordTime.add(1);
-                String progress = mRecordTime.getTime();
-                if (mEventSender != null)
-                    mEventSender.sendRecordProgressEvent(progress);
-            }
-        }
-    }
-
 }

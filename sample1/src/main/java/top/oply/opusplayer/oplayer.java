@@ -2,13 +2,13 @@ package top.oply.opusplayer;
 
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,14 +17,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import top.oply.opuslib.OpusPlayer;
 import top.oply.opuslib.OpusRecorder;
 import top.oply.opuslib.OpusTool;
 
 
 public class oplayer extends Activity {
 
-    private OpusPlayer opusPlayer = null;
     private OpusRecorder opusRecorder = null;
     private OpusTool oTool = new OpusTool();
 
@@ -127,37 +125,6 @@ public class oplayer extends Activity {
 
     }
 
-    public void btnPlayClick(View v) {
-        if (opusPlayer == null)
-            opusPlayer = OpusPlayer.getInstance();
-
-        String fileName = path + adapter.getItem(lvFiles.getCheckedItemPosition());
-        if (Utils.getExtention(fileName).equals("opus")) {
-            opusPlayer.play(fileName);
-            print("start palying..." + fileName);
-        } else {
-            print("This demo only support opus file's playback.");
-        }
-
-    }
-
-    public void btnPausePClick(View v) {
-        if (opusPlayer == null)
-            return;
-        String fileName = path + adapter.getItem(lvFiles.getCheckedItemPosition());
-
-        String str = opusPlayer.toggle(fileName);
-        ((Button) v).setText(str);
-        print("You might want to" + str);
-    }
-
-    public void btnStopPClick(View v) {
-        if (opusPlayer == null)
-            return;
-        opusPlayer.stop();
-        print("Stop Playing");
-    }
-
     public void btnStopRClick(View v) {
         if (opusRecorder == null)
             return;
@@ -166,7 +133,9 @@ public class oplayer extends Activity {
     }
 
     public void btnRecordClick(View v) {
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+            startRecording();
+        } else if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{
                     android.Manifest.permission.RECORD_AUDIO,
