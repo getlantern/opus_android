@@ -3,8 +3,6 @@ package top.oply.opuslib;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.media.audiofx.AutomaticGainControl;
-import android.media.audiofx.NoiseSuppressor;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -55,19 +53,24 @@ public class OpusRecorder {
         }
     }
 
+    public interface EffectsInitializer {
+        void init(int audioSessionId);
+    }
+
     /**
      * Starts recording audio from the system microphone to the given file.
      *
-     * @param file        path to file that will contain the Opus encoded audio data
-     * @param application determines what kind of encoding to use
-     * @param sampleRate  sample rate at which to record
-     * @param bitRate     bit rate at which to encode Opus
-     * @param stereo      if true records in stereo, if false in mono
+     * @param file               path to file that will contain the Opus encoded audio data
+     * @param application        determines what kind of encoding to use
+     * @param sampleRate         sample rate at which to record
+     * @param bitRate            bit rate at which to encode Opus
+     * @param stereo             if true records in stereo, if false in mono
+     * @param effectsInitializer optional hook for initializing audio effects on the audio session
      * @return a runnable that can be run to stop recording
      * @throws IllegalArgumentException if we were unable to initialize an AudioRecord using the supplied parameters
      */
-    public static Runnable startRecording(final String file, final OpusApplication application, final int sampleRate, final int bitRate, final boolean stereo) throws IllegalArgumentException {
-        final OpusRecorder recorder = new OpusRecorder(file, application.code, sampleRate, bitRate, stereo);
+    public static Runnable startRecording(final String file, final OpusApplication application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
+        final OpusRecorder recorder = new OpusRecorder(file, application.code, sampleRate, bitRate, stereo, effectsInitializer);
         return new Runnable() {
             @Override
             public void run() {
@@ -76,7 +79,7 @@ public class OpusRecorder {
         };
     }
 
-    private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo) throws IllegalArgumentException {
+    private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
         final int channels = stereo ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
         bufferSize = AudioRecord.getMinBufferSize(sampleRate, channels, AUDIO_FORMAT);
         audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channels, AUDIO_FORMAT, bufferSize);
@@ -84,24 +87,8 @@ public class OpusRecorder {
             throw new IllegalArgumentException("AudioRecord failed to initialize. Usually this means that one of the configuration arguments was incorrect.");
         }
 
-        NoiseSuppressor noiseSuppressor;
-        if (NoiseSuppressor.isAvailable()) {
-            try {
-                noiseSuppressor = NoiseSuppressor.create(audioRecord.getAudioSessionId());
-                if (noiseSuppressor != null) noiseSuppressor.setEnabled(true);
-            } catch (Exception e) {
-                Log.e(TAG, "unable to init noise suppressor: " + e);
-            }
-        }
-
-        AutomaticGainControl automaticGainControl;
-        if (AutomaticGainControl.isAvailable()) {
-            try {
-                automaticGainControl = AutomaticGainControl.create(audioRecord.getAudioSessionId());
-                if (automaticGainControl != null) automaticGainControl.setEnabled(true);
-            } catch (Exception e) {
-                Log.e(TAG, "unable to init automatic gain control: " + e);
-            }
+        if (effectsInitializer != null) {
+            effectsInitializer.init(audioRecord.getAudioSessionId());
         }
 
         audioRecord.startRecording();

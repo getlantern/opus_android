@@ -2,6 +2,8 @@ package top.oply.opusplayer;
 
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.media.audiofx.AutomaticGainControl;
+import android.media.audiofx.NoiseSuppressor;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -22,6 +24,7 @@ import top.oply.opuslib.OpusTool;
 
 
 public class oplayer extends Activity {
+    private static final String TAG = oplayer.class.getName();
 
     private Runnable stopRecording = null;
     private OpusTool oTool = new OpusTool();
@@ -175,7 +178,28 @@ public class oplayer extends Activity {
         int sampleRate = 16000; // record audio at 16Khz sample rate
         int bitRate = 24000; // encode into Opus at approximately 16 Kbps
         boolean stereo = false; // record mono
-        stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo);
+        stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo, new OpusRecorder.EffectsInitializer() {
+            @Override
+            public void init(int audioSessionId) {
+//                if (NoiseSuppressor.isAvailable()) {
+//                    try {
+//                        NoiseSuppressor noiseSuppressor = NoiseSuppressor.create(audioSessionId);
+//                        if (noiseSuppressor != null) noiseSuppressor.setEnabled(true);
+//                    } catch (Exception e) {
+//                        Log.e(TAG, "unable to init noise suppressor: " + e);
+//                    }
+//                }
+
+//                if (AutomaticGainControl.isAvailable()) {
+//                    try {
+//                        AutomaticGainControl automaticGainControl = AutomaticGainControl.create(audioSessionId);
+//                        if (automaticGainControl != null) automaticGainControl.setEnabled(true);
+//                    } catch (Exception e) {
+//                        Log.e(TAG, "unable to init automatic gain control: " + e);
+//                    }
+//                }
+            }
+        });
         print("Start Recording.. Save file to: " + fileName);
 
         updateList(name);
