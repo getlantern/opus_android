@@ -1,104 +1,56 @@
-## NOTE: THIS PROJECT IS DEPRECATED. This project is no longer being maintained.
+## NOTE: THIS IS A FORK OF THE DEPRECATED opus_android project
+This fork removes a lot of functionality and keeps only the OpusRecorder functionality for recording
+opus files. Since Android 5, Android natively supports playback of Opus anyway.
 
+### Set Up Permissions
+You'll need the android.Manifest.permission.RECORD_AUDIO permission. First, include it in your AndroidManifest.xml.
 
-
-# Opus for Android
-
-Welcome to the Opus library for Android.
-
-## Summary
-
-This is an Android library transplanted from official Opus codec. With this library, Opus format audio can be operated in an easy way. Application level function includes audio record, playback, encode and decode.
-
-## Integration
-Add the following dependency to your project.
 ```
-compile 'top.oply.opuslib:opuslib:1.0.2'
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
 ```
 
-### How to use the OpusLib codes (Method 1)
+Also, you'll need to check for the permission at runtime, as newer Android versions require the user
+to confirm this permission. For example:
 
-OpusService is the highest level interface to programmer. It's a background Server running automatically. All you need to do is sending Intents to it, and receiving the feedback messages through a Broadcast Receiver. The approach is recommended over the Method 2.
-
-#### Sending message.
-
-Many static public method can be called directly. For details, please refer to the source code of OpusService.java
 ```
-OpusService.play(Context context, String fileName);
-OpusService.record(Context context, String fileName);
-......
-```
-#### Receiving message.
-
-A Broadcast Receiver is needed to receive the feadback messages while playing, recording or converting a opus file. Below is an example.
-```
-//register a broadcast receiver
-mReceiver = new OpusReceiver();
-IntentFilter filter = new IntentFilter();
-filter.addAction(OpusEvent.ACTION_OPUS_UI_RECEIVER);
-registerReceiver(mReceiver, filter);
-
-//define a broadcast receiver
-class OpusReceiver extends BroadcastReceiver {
-        public void onReceive(Context context, Intent intent) {
-            Bundle bundle = intent.getExtras();
-            int type = bundle.getInt(OpusEvent.EVENT_TYPE, 0);
-            switch (type) {
-                case OpusEvent.CONVERT_FINISHED:
-                    break;
-                case OpusEvent.CONVERT_FAILED:
-                    break;
-                case OpusEvent.CONVERT_STARTED:
-                    break;
-                case OpusEvent.RECORD_FAILED:
-                    break;
-                case OpusEvent.RECORD_FINISHED:
-                    break;
-                case OpusEvent.RECORD_STARTED:
-                    break;
-                case OpusEvent.RECORD_PROGRESS_UPDATE:
-                    break;
-                case OpusEvent.PLAY_PROGRESS_UPDATE:
-                    break;
-                case OpusEvent.PLAY_GET_AUDIO_TRACK_INFO:
-                    break;
-                case OpusEvent.PLAYING_FAILED:
-                    break;
-                case OpusEvent.PLAYING_FINISHED:
-                    break;
-                case OpusEvent.PLAYING_PAUSED:
-                    break;
-                case OpusEvent.PLAYING_STARTED:
-                    break;
-                default:
-                    Log.d(TAG, intent.toString() + "Invalid request,discarded");
-                    break;
-            }
-        }
+public void onUiAction(View v) {
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+        startRecording();
+    } else if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 123);
+    } else {
+        startRecording();
     }
+}
+
+@Override
+public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+        Toast.makeText(this, "Don't have enough permissions", Toast.LENGTH_LONG).show();
+    } else {
+        startRecording();
+    }
+}
+```
+
+### How to record audio
+
+To start:
 
 ```
+OpusRecorder.OpusApplication application = OpusRecorder.OpusApplication.VOIP; // set this to AUDIO for something more optimized for music
+int sampleRate = 16000; // record audio at 16Khz sample rate
+int bitRate = 16000; // encode into Opus at approximately 16 Kbps
+boolean stereo = false; // record mono
+Runnable stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo);
+...
 
+To stop:
 
-### How to use the OpusLib codes (Method 2)
-- Encode and Decode
 ```
-OpusTool oTool = new OpusTool();
-oTool.decode(fileName,fileNameOut, null);
-oTool.encode(fileName, fileNameOut, null);
+stopRecording.run()
 ```
-- Playback
-```
-OpusPlayer opusPlayer = OpusPlayer.getInstance();
-opusPlayer.play(fileName);
-opusPlayer.stop();
-```
-- Record
-```
-OpusRecorder opusRecorder = OpusRecorder.getInstance();
-opusRecorder.startRecording(fileName);
-opusRecorder.stopRecording();
-```
+
 **Well, you can stop reading if you don't need to modify the library code.** Your project should be working if you follow the steps above.
 
 ##Project Compilation

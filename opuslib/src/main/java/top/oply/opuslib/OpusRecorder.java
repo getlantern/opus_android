@@ -5,108 +5,104 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
-import java.io.File;
 import java.nio.ByteBuffer;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by young on 2015/7/2.
  */
 public class OpusRecorder {
-    private static int RECORDER_SAMPLERATE = 16000;
-    private static int RECORDER_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static int RECORDER_AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
-    
-    private OpusRecorder(int sampleRate, int channels, int encoding){
-            RECORDER_SAMPLERATE = sampleRate;
-            RECORDER_CHANNELS = channels;
-            RECORDER_AUDIO_ENCODING = encoding;
-    }
-    private static volatile OpusRecorder oRecorder ;
-    public static OpusRecorder getInstance(int sampleRate, int channels, int encoding){
-        if(oRecorder == null)
-            synchronized(OpusRecorder.class){
-                if(oRecorder == null)
-                    oRecorder = new OpusRecorder(sampleRate, channels, encoding);
-            }
-        return oRecorder;
-    }
-    
-     public static OpusRecorder getInstance(){
-        if(oRecorder == null)
-            synchronized(OpusRecorder.class){
-                if(oRecorder == null)
-                    oRecorder = new OpusRecorder(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            }
-        return oRecorder;
-    }
-
-    private static final int STATE_NONE = 0;
-    private static final int STATE_STARTED = 1;
-
     private static final String TAG = OpusRecorder.class.getName();
-    private volatile int state = STATE_NONE;
+    private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
 
-    private AudioRecord recorder = null;
+    public enum OpusApplication {
+        /**
+         * Encoding optimized for speech intelligibility
+         */
+        VOIP(2048),
+        AUDIO(2049);
+
+        public final int code;
+
+        OpusApplication(int code) {
+            this.code = code;
+        }
+    }
+
+    /**
+     * Encoding optimized for speech intelligibility
+     */
+    public static int OPUS_APPLICATION_VOIP = 2048;
+
+    /**
+     * Encoding optimized for music quality
+     */
+    public static int OPUS_APPLICATION_AUDIO = 2049;
+
+    private final AtomicBoolean recording = new AtomicBoolean(true);
+    private AudioRecord audioRecord;
     private Thread recordingThread = new Thread();
-    private OpusTool opusTool = new OpusTool();
+    private final OpusTool opusTool = new OpusTool();
     private int bufferSize = 0;
     private String filePath = null;
-    private ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
-    private OpusEvent mEventSender = null;
-    private Timer mProgressTimer = null;
-    private Utils.AudioTime mRecordTime = new Utils.AudioTime();
-
-    public void setEventSender(OpusEvent es) {
-        mEventSender = es;
-    }
+    private final ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
 
     class RecordThread implements Runnable {
         public void run() {
-            mProgressTimer = new Timer();
-            mRecordTime.setTimeInSecond(0);
-            mProgressTimer.schedule(new MyTimerTask(),1000,1000);
-
             writeAudioDataToFile();
         }
     }
 
-
-    public void startRecording(final String file) {
-
-        if (state == STATE_STARTED)
-            return;
-
-        int minBufferSize = AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE, RECORDER_CHANNELS, RECORDER_AUDIO_ENCODING);
-        bufferSize = (minBufferSize / 1920 + 1) * 1920;
-
-        recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                RECORDER_SAMPLERATE, RECORDER_CHANNELS,
-                RECORDER_AUDIO_ENCODING, bufferSize);
-        recorder.startRecording();
-        state = STATE_STARTED;
-        if(file.isEmpty()) {
-            filePath = OpusTrackInfo.getInstance().getAValidFileName("OpusRecord");
-        } else {
-            filePath = file;
-        }
-//        filePath = file.isEmpty() ? initRecordFileName() : file;
-        int rst = opusTool.startRecording(filePath);
-        if (rst != 1) {
-            if(mEventSender != null)
-                mEventSender.sendEvent(OpusEvent.RECORD_FAILED);
-            Log.e(TAG,"recorder initially error");
-            return;
-        }
-
-        if(mEventSender != null)
-            mEventSender.sendEvent(OpusEvent.RECORD_STARTED);
-
-        recordingThread = new Thread(new RecordThread(), "OpusRecord Thrd");
-        recordingThread.start();
+    public interface EffectsInitializer {
+        void init(int audioSessionId);
     }
 
+    /**
+     * Starts recording audio from the system microphone to the given file.
+     *
+     * @param file               path to file that will contain the Opus encoded audio data
+     * @param application        determines what kind of encoding to use
+     * @param sampleRate         sample rate at which to record
+     * @param bitRate            bit rate at which to encode Opus
+     * @param stereo             if true records in stereo, if false in mono
+     * @param effectsInitializer optional hook for initializing audio effects on the audio session
+     * @return a runnable that can be run to stop recording
+     * @throws IllegalArgumentException if we were unable to initialize an AudioRecord using the supplied parameters
+     */
+    public static Runnable startRecording(final String file, final OpusApplication application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
+        final OpusRecorder recorder = new OpusRecorder(file, application.code, sampleRate, bitRate, stereo, effectsInitializer);
+        return new Runnable() {
+            @Override
+            public void run() {
+                recorder.stopRecording();
+            }
+        };
+    }
+
+    private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
+        final int channels = stereo ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
+        int minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channels, AUDIO_FORMAT);
+        bufferSize = (minBufferSize / 1920 + 1) * 1920;
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channels, AUDIO_FORMAT, bufferSize);
+        if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+            throw new IllegalArgumentException("AudioRecord failed to initialize. Usually this means that one of the configuration arguments was incorrect.");
+        }
+
+        if (effectsInitializer != null) {
+            effectsInitializer.init(audioRecord.getAudioSessionId());
+        }
+
+        audioRecord.startRecording();
+        filePath = file;
+        int rst = opusTool.startRecording(filePath, application, sampleRate, bitRate, stereo ? 2 : 1);
+        if (rst != 1) {
+            Log.e(TAG, "error initializing opus recorder");
+            return;
+        }
+
+        recordingThread = new Thread(new RecordThread(), "OpusRecorder record");
+        recordingThread.start();
+    }
 
     private void writeAudioDataToOpus(ByteBuffer buffer, int size) {
         ByteBuffer finalBuffer = ByteBuffer.allocateDirect(size);
@@ -115,7 +111,7 @@ public class OpusRecorder {
         boolean flush = false;
 
         //write data to Opus file
-        while (state == STATE_STARTED && finalBuffer.hasRemaining()) {
+        while (recording.get() && finalBuffer.hasRemaining()) {
             int oldLimit = -1;
             if (finalBuffer.remaining() > fileBuffer.remaining()) {
                 oldLimit = finalBuffer.limit();
@@ -135,82 +131,40 @@ public class OpusRecorder {
             }
         }
     }
-    private void writeAudioDataToFile() {
-        if (state != STATE_STARTED)
-            return;
 
+    private void writeAudioDataToFile() {
         ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
 
-        while (state == STATE_STARTED) {
+        while (recording.get()) {
             buffer.rewind();
-            int len = recorder.read(buffer, bufferSize);
-            Log.d(TAG, "\n lengh of buffersize is " + len);
+            int len = audioRecord.read(buffer, bufferSize);
             if (len != AudioRecord.ERROR_INVALID_OPERATION) {
                 try {
                     writeAudioDataToOpus(buffer, len);
-                }
-                catch (Exception e)
-                {
-                    if(mEventSender != null)
-                        mEventSender.sendEvent(OpusEvent.RECORD_FAILED);
-                    Utils.printE(TAG, e);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    stopRecording();
                 }
             }
 
         }
     }
 
-    private void updateTrackInfo() {
-        OpusTrackInfo info =  OpusTrackInfo.getInstance();
-        info.addOpusFile(filePath);
-        if(mEventSender != null) {
-            File f = new File(filePath);
-            mEventSender.sendEvent(OpusEvent.RECORD_FINISHED,f.getName());
-        }
-    }
-    public void stopRecording() {
-        if (state != STATE_STARTED)
-            return;
+    synchronized private void stopRecording() {
+        if (!recording.compareAndSet(true, false)) return;
 
-        state = STATE_NONE;
-        mProgressTimer.cancel();
         try {
             Thread.sleep(200);
-        }
-        catch (Exception e) {
-            Utils.printE(TAG,e);
+        } catch (InterruptedException ie) {
+            Log.d(TAG, "Interrupted during final sleep, ignoring");
         }
 
-        if (null != recorder) {
+        if (null != audioRecord) {
             opusTool.stopRecording();
             recordingThread = null;
-            recorder.stop();
-            recorder.release();
-            recorder = null;
-        }
-
-        updateTrackInfo();
-    }
-    public boolean isWorking() {
-        return state != STATE_NONE;
-    }
-    public void release() {
-        if(state != STATE_NONE) {
-            stopRecording();
+            audioRecord.stop();
+            audioRecord.release();
+            audioRecord = null;
         }
     }
-
-    private class MyTimerTask extends TimerTask {
-        public void run () {
-            if(state != STATE_STARTED) {
-                mProgressTimer.cancel();
-            } else {
-                mRecordTime.add(1);
-                String progress = mRecordTime.getTime();
-                if(mEventSender != null)
-                    mEventSender.sendRecordProgressEvent(progress);
-            }
-        }
-    }
-
 }

@@ -282,15 +282,12 @@ void cleanupRecorder() {
     memset(&header, 0, sizeof(OpusHeader));
     memset(&op, 0, sizeof(ogg_packet));
     memset(&og, 0, sizeof(ogg_page));
-
-    LOGD("Recording ends!!!");
 }
 
-int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
+int initRecorder(const char *path, const opus_int32 applicationP, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
-    LOGD("in Recorder, path: %s", path);
     if (!path) {
         return 0;
     }
@@ -337,7 +334,7 @@ int initRecorder(const char *path, const opus_int32 rateP, opus_int32 bitrateP, 
     header.nb_streams = 1;
 
     int result = OPUS_OK;
-    _encoder = opus_encoder_create(coding_rate, 1, OPUS_APPLICATION_AUDIO, &result);
+    _encoder = opus_encoder_create(coding_rate, 1, applicationP, &result);
     if (result != OPUS_OK) {
         LOGE("Error cannot create encoder: %s", opus_strerror(result));
         return 0;
@@ -510,7 +507,6 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
         pages_out++;
     }
 
-    LOGD("last byte_written is %lld", bytes_written);
     return 1;
 }
 //
@@ -646,9 +642,9 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr, const int rateP, int bitrateP, const int channelsP) {
+int startRecording(const char *pathStr, const int applicationP, const int rateP, int bitrateP, const int channelsP) {
 
-    int result = initRecorder(pathStr, rateP, bitrateP, channelsP);
+    int result = initRecorder(pathStr, applicationP, rateP, bitrateP, channelsP);
     return result;
 }
 

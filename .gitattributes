@@ -1,0 +1,4 @@
+opuslib-debug.aar filter=lfs diff=lfs merge=lfs -text
+opuslib-release.aar filter=lfs diff=lfs merge=lfs -text
+opuslib/opuslib-debug.aar filter=lfs diff=lfs merge=lfs -text
+opuslib/opuslib-release.aar filter=lfs diff=lfs merge=lfs -text

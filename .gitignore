@@ -7,3 +7,4 @@ local.properties
 *.d
 *.so
 obj/
+.DS_Store

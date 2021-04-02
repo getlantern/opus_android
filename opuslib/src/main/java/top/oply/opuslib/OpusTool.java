@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 public class OpusTool {
 
     private static final String TAG = OpusTool.class.getName();
+
     static {
         try {
             System.loadLibrary("opustool");
@@ -21,34 +22,34 @@ public class OpusTool {
 
     /**
      * Get library information
+     *
      * @return version information
      */
     public native String nativeGetString();
 
     /**
-     *
-     * @param wavFile path to input Wav file
+     * @param wavFile  path to input Wav file
      * @param opusFile path to output opus file
-     * @param option option for encoding
+     * @param option   option for encoding
      * @return non zero if successful
      */
     public native int encode(String wavFile, String opusFile, String option);
 
     /**
-     *
      * @param opusFile path to input opus file
-     * @param wavFile path to output Wav file
-     * @param option option for encoding
+     * @param wavFile  path to output Wav file
+     * @param option   option for encoding
      * @return non zero if successful
      */
     public native int decode(String opusFile, String wavFile, String option);
+
     /**
      * Start opus recording
      *
      * @param opusFile path to save opus file
      * @return non zero if started player
      */
-    public native int startRecording(String opusFile, int rate, int bitrate, int channels);
+    public native int startRecording(String opusFile, int application, int rate, int bitrate, int channels);
 
 
     /**
@@ -57,7 +58,8 @@ public class OpusTool {
     public native void stopRecording();
 
     /**
-     *  Play opus file
+     * Play opus file
+     *
      * @param opusFile path of opus file which is to be played
      * @return
      */
@@ -134,6 +136,7 @@ public class OpusTool {
      * @return Channel account
      */
     public native int getChannelCount();
+
     /**
      * Offset of actual sound for playback
      *
