@@ -173,7 +173,7 @@ public class oplayer extends Activity {
         String fileName = path + name;
         OpusRecorder.OpusApplication application = OpusRecorder.OpusApplication.VOIP; // set this to AUDIO for something more optimized for music
         int sampleRate = 16000; // record audio at 16Khz sample rate
-        int bitRate = 16000; // encode into Opus at approximately 16 Kbps
+        int bitRate = 24000; // encode into Opus at approximately 16 Kbps
         boolean stereo = false; // record mono
         stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo);
         print("Start Recording.. Save file to: " + fileName);
