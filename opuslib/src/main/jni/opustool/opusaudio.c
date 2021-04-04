@@ -226,7 +226,7 @@ static int writeOggPage(ogg_page *page, FILE *os) {
 
 opus_int32 bitrate = 16000;
 opus_int32 rate = 16000;
-const opus_int32 frame_size = 960;
+opus_int32 frame_size;
 const int with_cvbr = 1;
 const int max_ogg_delay = 0;
 const int comment_padding = 512;
@@ -284,7 +284,7 @@ void cleanupRecorder() {
     memset(&og, 0, sizeof(ogg_page));
 }
 
-int initRecorder(const char *path, const opus_int32 applicationP, const opus_int32 rateP, opus_int32 bitrateP, const int channels) {
+int initRecorder(const char *path, const opus_int32 applicationP, const opus_int32 rateP, opus_int32 bitrateP, opus_int32 frame_sizeP, const int channels) {
     cleanupRecorder();
     bitrate = bitrateP;
     rate = rateP;
@@ -321,7 +321,7 @@ int initRecorder(const char *path, const opus_int32 applicationP, const opus_int
         coding_rate = 8000;
     }
 
- //   frame_size=frame_size/(48000/coding_rate);
+    frame_size=frame_sizeP;
     if (rate != coding_rate) {
         LOGE("Invalid rate");
         return 0;
@@ -642,9 +642,9 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr, const int applicationP, const int rateP, int bitrateP, const int channelsP) {
+int startRecording(const char *pathStr, const int applicationP, const int rateP, const int bitrateP, const int frameSizeP, const int channelsP) {
 
-    int result = initRecorder(pathStr, applicationP, rateP, bitrateP, channelsP);
+    int result = initRecorder(pathStr, applicationP, rateP, bitrateP, frameSizeP, channelsP);
     return result;
 }
 

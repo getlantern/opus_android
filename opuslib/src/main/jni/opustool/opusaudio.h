@@ -11,7 +11,7 @@ int encode(char *, char *,char *);
 
 int decode(char *, char *, char *);
 
-int startRecording(const char *pathStr, const int applicationP, const int rateP, int bitrateP, const int channels);
+int startRecording(const char *pathStr, const int applicationP, const int rateP, const int bitrateP, const int frameSizeP, const int channels);
 
 void stopRecording(void);
 

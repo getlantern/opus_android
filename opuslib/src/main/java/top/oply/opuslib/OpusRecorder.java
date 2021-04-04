@@ -7,6 +7,7 @@ import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by young on 2015/7/2.
@@ -40,18 +41,13 @@ public class OpusRecorder {
     public static int OPUS_APPLICATION_AUDIO = 2049;
 
     private final AtomicBoolean recording = new AtomicBoolean(true);
+    private final AtomicLong started = new AtomicLong();
     private AudioRecord audioRecord;
-    private Thread recordingThread = new Thread();
     private final OpusTool opusTool = new OpusTool();
-    private int bufferSize = 0;
-    private String filePath = null;
-    private final ByteBuffer fileBuffer = ByteBuffer.allocateDirect(1920);// Should be 1920, to accord with function writeFreme()
-
-    class RecordThread implements Runnable {
-        public void run() {
-            writeAudioDataToFile();
-        }
-    }
+    private final long recordLimitMillis;
+    private final int chunkSize;
+    private final int frameSize;
+    private final String filePath;
 
     public interface EffectsInitializer {
         void init(int audioSessionId);
@@ -66,11 +62,12 @@ public class OpusRecorder {
      * @param bitRate            bit rate at which to encode Opus
      * @param stereo             if true records in stereo, if false in mono
      * @param effectsInitializer optional hook for initializing audio effects on the audio session
+     * @param recordLimitMillis  limit for how long to record, in milliseconds. This is a safeguard against accidentally continuing to record if client fails to call stopRecording.
      * @return a runnable that can be run to stop recording
      * @throws IllegalArgumentException if we were unable to initialize an AudioRecord using the supplied parameters
      */
-    public static Runnable startRecording(final String file, final OpusApplication application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
-        final OpusRecorder recorder = new OpusRecorder(file, application.code, sampleRate, bitRate, stereo, effectsInitializer);
+    public static Runnable startRecording(final String file, final OpusApplication application, final int sampleRate, final int bitRate, final boolean stereo, long recordLimitMillis, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
+        final OpusRecorder recorder = new OpusRecorder(file, application.code, sampleRate, bitRate, stereo, recordLimitMillis, effectsInitializer);
         return new Runnable() {
             @Override
             public void run() {
@@ -79,11 +76,16 @@ public class OpusRecorder {
         };
     }
 
-    private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
-        final int channels = stereo ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
-        int minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channels, AUDIO_FORMAT);
-        bufferSize = (minBufferSize / 1920 + 1) * 1920;
-        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channels, AUDIO_FORMAT, bufferSize);
+    private OpusRecorder(final String file, final int application, final int sampleRate, final int bitRate, final boolean stereo, long recordLimitMillis, EffectsInitializer effectsInitializer) throws IllegalArgumentException {
+        this.recordLimitMillis = recordLimitMillis;
+        int defaultFrameSize = getDefaultFrameSize(sampleRate);
+        int channels = stereo ? 2 : 1;
+        chunkSize = defaultFrameSize * channels * 2;
+        frameSize = chunkSize / 2 / channels;
+
+        final int audioRecordChannels = stereo ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO;
+        int bufferSize = 4 * AudioRecord.getMinBufferSize(sampleRate, audioRecordChannels, AUDIO_FORMAT);
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, audioRecordChannels, AUDIO_FORMAT, bufferSize);
         if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
             throw new IllegalArgumentException("AudioRecord failed to initialize. Usually this means that one of the configuration arguments was incorrect.");
         }
@@ -92,76 +94,72 @@ public class OpusRecorder {
             effectsInitializer.init(audioRecord.getAudioSessionId());
         }
 
+        started.set(System.currentTimeMillis());
         audioRecord.startRecording();
         filePath = file;
-        int rst = opusTool.startRecording(filePath, application, sampleRate, bitRate, stereo ? 2 : 1);
+
+        int rst = opusTool.startRecording(filePath, application, sampleRate, bitRate, frameSize, channels);
         if (rst != 1) {
             Log.e(TAG, "error initializing opus recorder");
             return;
         }
 
-        recordingThread = new Thread(new RecordThread(), "OpusRecorder record");
-        recordingThread.start();
+        new Thread(readWriteAndEncode, "OpusRecorder recording").start();
     }
 
-    private void writeAudioDataToOpus(ByteBuffer buffer, int size) {
-        ByteBuffer finalBuffer = ByteBuffer.allocateDirect(size);
-        finalBuffer.put(buffer);
-        finalBuffer.rewind();
-        boolean flush = false;
-
-        //write data to Opus file
-        while (recording.get() && finalBuffer.hasRemaining()) {
-            int oldLimit = -1;
-            if (finalBuffer.remaining() > fileBuffer.remaining()) {
-                oldLimit = finalBuffer.limit();
-                finalBuffer.limit(fileBuffer.remaining() + finalBuffer.position());
-            }
-            fileBuffer.put(finalBuffer);
-            if (fileBuffer.position() == fileBuffer.limit() || flush) {
-                int length = !flush ? fileBuffer.limit() : finalBuffer.position();
-
-                int rst = opusTool.writeFrame(fileBuffer, length);
-                if (rst != 0) {
-                    fileBuffer.rewind();
-                }
-            }
-            if (oldLimit != -1) {
-                finalBuffer.limit(oldLimit);
-            }
+    private int getDefaultFrameSize(int sampleRate) {
+        switch (sampleRate) {
+            case 8000:
+                return 160;
+            case 12000:
+                return 240;
+            case 16000:
+                return 160;
+            case 24000:
+                return 240;
+            case 48000:
+                return 120;
+            default:
+                throw new IllegalArgumentException(String.format("Sample rate %1$s not support, please specify a rate of 8000, 12000, 16000, 24000 or 48000", sampleRate));
         }
     }
 
-    private void writeAudioDataToFile() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
+    private Runnable readWriteAndEncode = new Runnable() {
+        @Override
+        public void run() {
+            while (recording.get()) {
+                ByteBuffer frame = ByteBuffer.allocateDirect(chunkSize);
+                int offset = 0;
+                int remaining = chunkSize;
+                while (remaining > 0 && recording.get()) {
+                    ByteBuffer slice = frame.slice();
+                    slice.position(offset);
+                    int read = audioRecord.read(slice, remaining);
+                    offset += read;
+                    remaining -= read;
+                }
+                if (remaining <= 0) {
+                    opusTool.writeFrame(frame, chunkSize);
+                }
 
-        while (recording.get()) {
-            buffer.rewind();
-            int len = audioRecord.read(buffer, bufferSize);
-            if (len != AudioRecord.ERROR_INVALID_OPERATION) {
-                try {
-                    writeAudioDataToOpus(buffer, len);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if (System.currentTimeMillis() - started.get() > recordLimitMillis) {
                     stopRecording();
                 }
             }
-
         }
-    }
+    };
 
     synchronized private void stopRecording() {
-        if (!recording.compareAndSet(true, false)) return;
-
         try {
             Thread.sleep(200);
         } catch (InterruptedException ie) {
             Log.d(TAG, "Interrupted during final sleep, ignoring");
         }
 
+        if (!recording.compareAndSet(true, false)) return;
+
         if (null != audioRecord) {
             opusTool.stopRecording();
-            recordingThread = null;
             audioRecord.stop();
             audioRecord.release();
             audioRecord = null;

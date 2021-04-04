@@ -1,7 +1,10 @@
 package top.oply.opusplayer;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.media.audiofx.AutomaticGainControl;
 import android.media.audiofx.NoiseSuppressor;
 import android.os.Build;
@@ -33,6 +36,7 @@ public class oplayer extends Activity {
     private List<String> lstFiles = new ArrayList<>();
     private ArrayAdapter<String> adapter;
     private String path;
+    private String fileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,11 +132,26 @@ public class oplayer extends Activity {
 
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void btnStopRClick(View v) {
         if (stopRecording == null) return;
         stopRecording.run();
         stopRecording = null;
         print("Stopped Recording");
+        MediaPlayer mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioAttributes(
+                new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+        );
+        try {
+            mediaPlayer.setDataSource(fileName);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+        } catch (Throwable t) {
+            print(t.getMessage());
+        }
     }
 
     public void btnRecordClick(View v) {
@@ -173,31 +192,32 @@ public class oplayer extends Activity {
             if (!lstFiles.contains(name))
                 break;
         }
-        String fileName = path + name;
+        fileName = path + name;
         OpusRecorder.OpusApplication application = OpusRecorder.OpusApplication.VOIP; // set this to AUDIO for something more optimized for music
-        int sampleRate = 16000; // record audio at 16Khz sample rate
-        int bitRate = 24000; // encode into Opus at approximately 16 Kbps
+        int sampleRate = 16000; // sample rate in Hz
+        int bitRate = 24000; // Opus encoding bitrate in bits per second
         boolean stereo = false; // record mono
-        stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo, new OpusRecorder.EffectsInitializer() {
+        long recordLimitMillis = 15000; // 15 second recording limit
+        stopRecording = OpusRecorder.startRecording(fileName, application, sampleRate, bitRate, stereo, recordLimitMillis, new OpusRecorder.EffectsInitializer() {
             @Override
             public void init(int audioSessionId) {
-//                if (NoiseSuppressor.isAvailable()) {
-//                    try {
-//                        NoiseSuppressor noiseSuppressor = NoiseSuppressor.create(audioSessionId);
-//                        if (noiseSuppressor != null) noiseSuppressor.setEnabled(true);
-//                    } catch (Exception e) {
-//                        Log.e(TAG, "unable to init noise suppressor: " + e);
-//                    }
-//                }
+                if (NoiseSuppressor.isAvailable()) {
+                    try {
+                        NoiseSuppressor noiseSuppressor = NoiseSuppressor.create(audioSessionId);
+                        if (noiseSuppressor != null) noiseSuppressor.setEnabled(true);
+                    } catch (Exception e) {
+                        Log.e(TAG, "unable to init noise suppressor: " + e);
+                    }
+                }
 
-//                if (AutomaticGainControl.isAvailable()) {
-//                    try {
-//                        AutomaticGainControl automaticGainControl = AutomaticGainControl.create(audioSessionId);
-//                        if (automaticGainControl != null) automaticGainControl.setEnabled(true);
-//                    } catch (Exception e) {
-//                        Log.e(TAG, "unable to init automatic gain control: " + e);
-//                    }
-//                }
+                if (AutomaticGainControl.isAvailable()) {
+                    try {
+                        AutomaticGainControl automaticGainControl = AutomaticGainControl.create(audioSessionId);
+                        if (automaticGainControl != null) automaticGainControl.setEnabled(true);
+                    } catch (Exception e) {
+                        Log.e(TAG, "unable to init automatic gain control: " + e);
+                    }
+                }
             }
         });
         print("Start Recording.. Save file to: " + fileName);
