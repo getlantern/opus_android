@@ -48,6 +48,7 @@ public class OpusRecorder {
     private final int chunkSize;
     private final int frameSize;
     private final String filePath;
+    private final Thread readWriteAndEncodeThread;
 
     public interface EffectsInitializer {
         void init(int audioSessionId);
@@ -100,11 +101,11 @@ public class OpusRecorder {
 
         int rst = opusTool.startRecording(filePath, application, sampleRate, bitRate, frameSize, channels);
         if (rst != 1) {
-            Log.e(TAG, "error initializing opus recorder");
-            return;
+            throw new RuntimeException("error initializing opus recorder");
         }
 
-        new Thread(readWriteAndEncode, "OpusRecorder recording").start();
+        readWriteAndEncodeThread = new Thread(readWriteAndEncode, "OpusRecorder recording");
+        readWriteAndEncodeThread.start();
     }
 
     private int getDefaultFrameSize(int sampleRate) {
@@ -158,11 +159,15 @@ public class OpusRecorder {
 
         if (!recording.compareAndSet(true, false)) return;
 
-        if (null != audioRecord) {
-            opusTool.stopRecording();
-            audioRecord.stop();
-            audioRecord.release();
-            audioRecord = null;
+        try {
+            readWriteAndEncodeThread.join(1000);
+        } catch (InterruptedException ie) {
+            Log.d(TAG, "Interrupted while waiting for readWriteAndEncode to finish, ignoring");
         }
+
+        opusTool.stopRecording();
+        audioRecord.stop();
+        audioRecord.release();
+        audioRecord = null;
     }
 }
