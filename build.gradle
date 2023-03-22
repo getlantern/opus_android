@@ -4,7 +4,7 @@ buildscript {
         google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.1'
+        classpath 'com.android.tools.build:gradle:7.4.2'
         classpath 'com.github.dcendents:android-maven-gradle-plugin:1.5'
     }
 }
@@ -14,4 +14,10 @@ allprojects {
         jcenter()
         google()
     }
+}
+
+ext {
+    compileSdkVersion = 33
+    targetSdkVersion = 33
+    buildToolsVersion = '33.0.1'
 }
